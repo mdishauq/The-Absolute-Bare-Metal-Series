@@ -1,0 +1,41 @@
+#include <stdint.h>
+
+// RCC base address      = 0x40021000
+// GPIOC base address    = 0x40011000
+
+#define RCC_APB2ENR  (*(volatile uint32_t*)0x40021018)
+#define GPIOC_CRL    (*(volatile uint32_t*)0x40011000)
+#define GPIOC_CRH    (*(volatile uint32_t*)0x40011004)
+#define GPIOC_IDR    (*(volatile uint32_t*)0x40011008)
+#define GPIOC_ODR    (*(volatile uint32_t*)0x4001100C)
+
+void delay(volatile uint32_t a)
+{
+    while(a--) {
+        __asm("nop");
+    }
+}
+
+int main(void)
+{
+    // Enable GPIOC clock
+    RCC_APB2ENR |= (1 << 4);
+
+    // ---- PC13 as OUTPUT ----
+    GPIOC_CRH &= ~(0xF << 20);   // Clear PC13
+    GPIOC_CRH |=  (0x2 << 20);   // Output 2MHz push-pull
+
+    // ---- PC6 as INPUT (pull-up) ----
+    GPIOC_CRL &= ~(0xF << 24);   // Clear PC6
+    GPIOC_CRL |=  (0x8 << 24);   // CNF=10, MODE=00 (input pull-up/pull-down)
+    GPIOC_ODR |=  (1 << 6);      // Enable pull-up
+
+    while (1)
+    {
+        if (!(GPIOC_IDR & (1 << 6)))   // Button pressed (active low)
+        {
+            GPIOC_ODR ^= (1 << 13);
+            delay(200000);  // crude debounce
+        }
+    }
+}
